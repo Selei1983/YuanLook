@@ -81,7 +81,7 @@ func (s *MonitorService) CreateMonitor(ctx context.Context, req *MonitorTaskRequ
 	// 设置默认可见性
 	visibility := req.Visibility
 	if visibility == "" {
-		visibility = "public" // 默认公开可见
+		visibility = "private" // 默认登录可见
 	}
 
 	task := &models.MonitorTask{

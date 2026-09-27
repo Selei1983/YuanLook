@@ -99,7 +99,7 @@ const MonitorModal = ({open, monitorId, onCancel, onSuccess}: MonitorModalProps)
                 description: '',
                 enabled: true,
                 showTargetPublic: true,
-                visibility: 'public',
+                visibility: 'private',
                 interval: 60,
                 agentIds: [],
                 tags: [],
@@ -130,7 +130,7 @@ const MonitorModal = ({open, monitorId, onCancel, onSuccess}: MonitorModalProps)
             description: monitor.description,
             enabled: monitor.enabled,
             showTargetPublic: monitor.showTargetPublic ?? true,
-            visibility: monitor.visibility || 'public',
+            visibility: 'private',
             interval: monitor.interval || 60,
             agentIds: monitor.agentIds || [],
             tags: monitor.tags || [],
@@ -178,7 +178,7 @@ const MonitorModal = ({open, monitorId, onCancel, onSuccess}: MonitorModalProps)
                 description: values.description?.trim(),
                 enabled: values.enabled,
                 showTargetPublic: values.showTargetPublic ?? true,
-                visibility: values.visibility || 'public',
+                visibility: values.visibility || 'private',
                 interval: values.interval || 60,
                 agentIds: values.agentIds || [],
                 tags: values.tags || [],
@@ -319,10 +319,10 @@ const MonitorModal = ({open, monitorId, onCancel, onSuccess}: MonitorModalProps)
                 </Form.Item>
 
                 <Form.Item
-                    label="公开页面显示目标"
+                    label="看板显示目标"
                     name="showTargetPublic"
                     valuePropName="checked"
-                    extra="控制在公开监控页面是否显示监控目标地址"
+                    extra="控制在登录后的监控看板是否显示目标地址"
                 >
                     <Switch checkedChildren="显示" unCheckedChildren="隐藏"/>
                 </Form.Item>
@@ -331,12 +331,11 @@ const MonitorModal = ({open, monitorId, onCancel, onSuccess}: MonitorModalProps)
                     label="可见性"
                     name="visibility"
                     rules={[{required: true, message: '请选择可见性'}]}
-                    extra="控制监控任务在公开页面的可见性"
+                    extra="当前为私有模式，所有监控任务仅登录后可见"
                 >
                     <Select
                         placeholder="请选择可见性"
                         options={[
-                            {label: '匿名可见', value: 'public'},
                             {label: '登录可见', value: 'private'},
                         ]}
                     />

@@ -412,9 +412,9 @@ const AgentList = () => {
             dataIndex: 'visibility',
             key: 'visibility',
             width: 100,
-            render: (visibility) => (
-                <Tag color={visibility === 'public' ? 'green' : 'orange'}>
-                    {visibility === 'public' ? '匿名可见' : '登录可见'}
+            render: () => (
+                <Tag color="orange">
+                    登录可见
                 </Tag>
             ),
         },

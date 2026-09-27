@@ -101,8 +101,8 @@ const AgentBasicInfo = ({agentId}: AgentBasicInfoProps) => {
                         )}
                     </Descriptions.Item>
                     <Descriptions.Item label="可见性">
-                        <Tag color={agent.visibility === 'public' ? 'green' : 'orange'}>
-                            {agent.visibility === 'public' ? '匿名可见' : '登录可见'}
+                        <Tag color="orange">
+                            登录可见
                         </Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="标签" span={{xs: 1, sm: 2, lg: 3}}>

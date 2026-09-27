@@ -208,7 +208,7 @@ func serveResolvedStaticFile(c *echo.Context, full string, immutable bool) error
 	c.Response().Header().Set("Content-Type", contentType)
 	c.Response().Header().Set("X-Content-Type-Options", "nosniff")
 	c.Response().Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-	if immutable {
+	if immutable && c.Response().Header().Get("Cache-Control") == "" {
 		c.Response().Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	}
 	http.ServeContent(c.Response(), c.Request(), stat.Name(), stat.ModTime(), file)
@@ -216,7 +216,7 @@ func serveResolvedStaticFile(c *echo.Context, full string, immutable bool) error
 }
 
 func setHTMLHeaders(c *echo.Context) {
-	c.Response().Header().Set("Cache-Control", "no-cache")
+	c.Response().Header().Set("Cache-Control", "private, no-store")
 	c.Response().Header().Set("X-Content-Type-Options", "nosniff")
 	c.Response().Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }

@@ -32,11 +32,12 @@ export const AdminHeader = ({userInfo, appliedTheme, themeButtonRef, onToggleThe
             onOk: async () => {
                 try {
                     await logout();
-                } finally {
                     localStorage.removeItem('token');
                     localStorage.removeItem('userInfo');
                     messageApi.success('已退出登录');
-                    navigate('/');
+                    window.location.assign('/admin/login');
+                } catch {
+                    messageApi.error('退出登录失败，请重试');
                 }
             },
         });

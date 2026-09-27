@@ -40,6 +40,7 @@ func (r AccountHandler) Login(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "用户名或密码错误")
 	}
 
+	setPrivateSession(c, loginResp)
 	return orz.Ok(c, loginResp)
 }
 
@@ -65,6 +66,7 @@ func (r AccountHandler) OIDCLogin(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "OIDC 认证失败: "+err.Error())
 	}
 
+	setPrivateSession(c, loginResp)
 	return orz.Ok(c, loginResp)
 }
 
@@ -114,11 +116,13 @@ func (r AccountHandler) GitHubLogin(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "GitHub 认证失败: "+err.Error())
 	}
 
+	setPrivateSession(c, loginResp)
 	return orz.Ok(c, loginResp)
 }
 
 // Logout 用户登出
 func (r AccountHandler) Logout(c *echo.Context) error {
+	clearPrivateSession(c)
 	userID := c.Get("userID")
 	if userID == nil {
 		return orz.NewError(401, "未登录")

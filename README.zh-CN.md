@@ -1,93 +1,64 @@
-# Pika 探针监控系统
+# YuanLook
 
-<div align="center">
+**属于你自己的私有服务器监控与管理平台。**
 
-一个基于 Go + PostgreSQL/SQLite + VictoriaMetrics 的实时探针监控系统
+[English](README.md) · [私有模式说明](docs/private-mode.md) · [许可证](LICENSE)
 
-[快速开始](#快速开始) • [截图](#截图) • [功能特性](#功能特性) • [文档](#文档) • [加入群聊](#加入群聊) 
+YuanLook 基于 [Pika](https://github.com/pika-monitor/pika) 二次开发。**代码仓库公开，部署后的服务器看板和监控数据必须登录才能访问。**
 
-</div>
+## 核心差异
 
-## 简介
+- 首页、服务器详情、监控页和管理后台均受服务端登录检查保护。
+- 主机列表、标签、历史与实时指标、服务监控等接口强制鉴权；旧数据即使标记为公开也不能匿名读取。
+- 密码、OIDC、GitHub 登录成功后建立 HttpOnly 页面会话；管理写操作继续使用 Bearer Token / API Key。
+- 新增主机、监控默认私有，后台不再提供“匿名可见”选项。
+- 探针连接沿用原有 API Key 认证，不依赖浏览器登录。
 
-Pika 是一个轻量级的探针监控系统，支持实时数据采集、存储和查询。系统采用 WebSocket 进行探针与服务端的通信，使用 VictoriaMetrics 存储时序指标数据，支持 PostgreSQL 和 SQLite 两种数据库方案。除了基础监控功能外，还提供 Linux 应急响应和安全基线检查能力，帮助快速发现和分析系统安全风险。
+具体访问边界、登录引导接口和探针下载例外见 [私有模式说明](docs/private-mode.md)。
 
-## 功能特性
+## 保留的能力
 
-- **📊 实时性能监控**：CPU、内存、磁盘、网络、GPU、温度等系统资源监控
-- **🔍 服务监控**：HTTP/HTTPS、TCP 端口、ICMP/Ping 监控，支持证书到期检测
-- **🛡️ 防篡改保护**：文件实时监控、属性巡检、事件告警
-- **🔒 安全审计**：资产清单收集、安全风险分析、历史审计记录
-- **🔐 多种认证**：Basic Auth、OIDC、GitHub OAuth
-- **📦 轻量部署**：Docker Compose 一键部署，资源占用低
+主机资源监控、HTTP/TCP/ICMP 服务检查、告警通知、DDNS、SSH 登录监控、防篡改和 Linux 资产审计。技术栈为 Go + React/TypeScript + SQLite/PostgreSQL + VictoriaMetrics。
 
-详细功能说明请参考 [功能特性文档](docs/features.md)。
+## 从源码构建
 
-## 截图
+**当前尚未发布 YuanLook 镜像。仓库继承的 Compose 文件使用 Pika 官方镜像，不包含本项目的私有模式改动。请先构建当前源码。**
 
-![public1.png](screenshots/public1.png)
-![public2.png](screenshots/public2.png)
-![public3.png](screenshots/public3.png)
-![public4.png](screenshots/public4.png)
-![sec1.png](screenshots/sec1.png)
-![sec2.png](screenshots/sec2.png)
-![tamper.png](screenshots/tamper.png)
-![setting.png](screenshots/setting.png)
+需要 Go 1.26+、Node.js 22+、npm、make，以及可连接的 VictoriaMetrics 服务。
 
-## 快速开始
-
-### SQLite 版本
-
-```bash
-# 下载配置文件
-curl -O https://raw.githubusercontent.com/dushixiang/pika/main/docker-compose.sqlite.yml
-curl -o config.yaml https://raw.githubusercontent.com/dushixiang/pika/main/config.sqlite.yaml
-
-# 修改配置（重要：修改 JWT Secret 和管理员密码）
-# 编辑 config.yaml
-
-# 启动服务
-docker-compose -f docker-compose.sqlite.yml up -d
-
-# 访问 http://localhost:8080
-# 默认账户 admin / admin123
+```sh
+git clone https://github.com/Selei1983/YuanLook.git
+cd YuanLook
+git clone https://github.com/pika-monitor/pika-default-theme.git ../pika-default-theme
+git -C ../pika-default-theme checkout "$(cat .github/default-theme.ref)"
+make build-web
+go build -o bin/yuanlook ./cmd/serv
+cp config.sqlite.yaml config.yaml
 ```
 
-详细文档：[SQLite 版本部署指南](docs/deployment-sqlite.md)
+修改 `config.yaml` 中的管理员密码哈希、JWT 密钥和 VictoriaMetrics 地址，再启动：
 
-### PostgreSQL 版本
-
-```bash
-# 下载配置文件
-curl -O https://raw.githubusercontent.com/dushixiang/pika/main/docker-compose.postgresql.yml
-curl -o config.yaml https://raw.githubusercontent.com/dushixiang/pika/main/config.postgresql.yaml
-
-# 修改配置（重要：修改数据库密码、JWT Secret 和管理员密码）
-# 编辑 config.yaml
-
-# 启动服务
-docker-compose -f docker-compose.postgresql.yml up -d
-
-# 访问 http://localhost:8080
-# 默认账户 admin / admin123
+```sh
+./bin/yuanlook serve --config config.yaml
 ```
 
-详细文档：[PostgreSQL 版本部署指南](docs/deployment-postgresql.md)
+按需从 `./cmd/agent` 编译探针；安装 UPX 后，也可使用 `make build-agents` 构建上游支持的多平台探针。内置探针下载需要将相应产物放在 `bin/agents`。
 
-## 文档
+为保持兼容，Go 模块路径、探针协议、服务名称及部分界面文字暂时保留 Pika 命名。默认看板主题来自独立上游仓库，版本由 `.github/default-theme.ref` 锁定。
 
-- [功能特性](docs/features.md)
-- [SQLite 版本部署指南](docs/deployment-sqlite.md)
-- [PostgreSQL 版本部署指南](docs/deployment-postgresql.md)
-- [通用配置说明](docs/common-config.md)
+## 验证状态
 
-## 环境要求
+私有模式的服务端与探针回归测试、前端生产构建和 ESLint 已在本地通过；尚未完成真实服务器部署及第三方 OAuth 提供商联调。
 
-- Docker 20.10+
-- Docker Compose 1.29+
+```sh
+go test ./internal/... ./pkg/agent/...
+npm ci --prefix web
+npm run build --prefix web
+npm run lint --prefix web
+```
 
-## 加入群聊 
+继承的上游镜像和 Release 发布流程仅允许在上游仓库运行；YuanLook 使用独立的验证流程。
 
-请见官网 https://pika.termark.app 获取社群入口
+## 来源与许可
 
-https://pika.termark.app
+基于 Pika 提交 `f391cb15a60efdc979672baba915cb85e67e8711`，保留原作者版权声明与 Apache-2.0 许可证。YuanLook 是独立衍生项目，不是 Pika 官方发布版本。详见 [UPSTREAM.md](UPSTREAM.md)。

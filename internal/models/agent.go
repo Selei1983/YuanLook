@@ -22,7 +22,7 @@ type Agent struct {
 	ExpireTime int64                       `json:"expireTime"`                                 // 到期时间（时间戳毫秒）
 	Enabled    bool                        `gorm:"default:true;not null;index" json:"enabled"` // 是否接收并处理探针数据
 	Status     int                         `json:"status"`                                     // 状态: 0-离线, 1-在线
-	Visibility string                      `gorm:"default:public" json:"visibility"`           // 可见性: public-匿名可见, private-登录可见
+	Visibility string                      `gorm:"default:private" json:"visibility"`           // 可见性: public-匿名可见, private-登录可见
 	Weight     int                         `gorm:"default:0;index" json:"weight"`              // 展示顺序（由拖动排序维护，数字越大越靠前）
 	Remark     string                      `json:"remark"`                                     // 备注信息
 	LastSeenAt int64                       `gorm:"index" json:"lastSeenAt"`                    // 最后上线时间（时间戳毫秒）

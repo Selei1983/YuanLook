@@ -17,6 +17,8 @@ env:
 
 jobs:
   build-and-push:
+    # Upstream publishing is not enabled for YuanLook.
+    if: github.repository == 'pika-monitor/pika'
     runs-on: ubuntu-latest
     permissions:
       contents: read

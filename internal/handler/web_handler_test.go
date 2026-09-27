@@ -128,3 +128,19 @@ func TestEchoWildcardRoutesKeepAdminAndAPISeparated(t *testing.T) {
 		t.Fatalf("unknown API entered SPA fallback: status=%d type=%q", apiRecorder.Code, apiRecorder.Header().Get("Content-Type"))
 	}
 }
+
+func TestPrivateThemeAssetDoesNotOverrideNoStore(t *testing.T) {
+	asset := filepath.Join(t.TempDir(), "app.js")
+	if err := os.WriteFile(asset, []byte("theme"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res := httptest.NewRecorder()
+	c := echo.New().NewContext(httptest.NewRequest(http.MethodGet, "/assets/app.js", nil), res)
+	c.Response().Header().Set("Cache-Control", "private, no-store")
+	if err := serveResolvedStaticFile(c, asset, true); err != nil {
+		t.Fatal(err)
+	}
+	if res.Header().Get("Cache-Control") != "private, no-store" {
+		t.Fatal("private theme asset became publicly cacheable")
+	}
+}

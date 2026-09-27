@@ -1,84 +1,62 @@
-# Pika
+# YuanLook
 
-<div align="center">
+**Private server monitoring, under your control.**
 
-Lightweight probe monitoring — Go + PostgreSQL/SQLite + VictoriaMetrics
+[简体中文](README.zh-CN.md) · [Private mode](docs/private-mode.md) · [License](LICENSE)
 
-[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](.) [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](.) [![License](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE) [![Stars](https://img.shields.io/github/stars/pika-monitor/pika?style=social)](https://github.com/pika-monitor/pika)
+YuanLook is a self-hosted server monitoring and management project based on [Pika](https://github.com/pika-monitor/pika). This repository is public; deployed dashboards and monitoring data require authentication.
 
-[English](./README.md) | [简体中文](./README.zh-CN.md) · [Website](https://pika.termark.app) · [Docs](./docs/features.md)
+## What changes
 
-</div>
+- Server-side login checks protect the dashboard, server details and management pages.
+- Host lists, tags, metrics and service-monitoring APIs reject anonymous, forged and expired credentials, including for legacy records marked public.
+- Password, OIDC and GitHub sign-in establish an HttpOnly browser session; administrative mutations retain Bearer-token/API-key authentication.
+- New resources default to private, and the management UI no longer offers anonymous visibility.
+- Probe registration retains its API-key authentication and does not require a browser session.
 
-## Overview
-
-Pika is a lightweight probe monitoring system. Probes push metrics to the server over WebSocket; VictoriaMetrics stores time-series while PostgreSQL/SQLite stores business data. Beyond monitoring, it provides Linux incident response and baseline checks to surface security risks early.
+See [private-mode behavior and boundaries](docs/private-mode.md), including the minimal public login/bootstrap and agent-download endpoints.
 
 ## Features
 
-- **📊 Real-time metrics** — CPU / Memory / Disk / Network / GPU / Temperature, with multi-range history
-- **🔍 Service checks** — HTTP(S) / TCP / ICMP, including cert expiry detection
-- **🛡️ Tamper protection** — fsnotify watch, immutable attribute patrol, and alerting
-- **🔒 Security audit** — asset inventory, risk grading (Critical/High/Medium/Low), and audit history
-- **🔐 Auth** — Basic Auth (bcrypt) / OIDC / GitHub OAuth
-- **📦 One-command deploy** — Docker Compose, SQLite or PostgreSQL
+Go agents and server, a React/TypeScript management UI, SQLite or PostgreSQL for business data, and VictoriaMetrics for time-series metrics. Inherited features include CPU/memory/disk/network monitoring, HTTP/TCP/ICMP checks, notifications, DDNS, SSH login monitoring, tamper protection and Linux asset auditing.
 
-See [Features](./docs/features.md) for details.
+## Build from source
 
-## Screenshots
+YuanLook does not yet publish its own container image. The inherited Compose files reference **upstream Pika images**, which do not contain YuanLook's private-mode changes. Build this source before deployment.
 
-| Public | Security | Tamper |
-| --- | --- | --- |
-| ![public1](screenshots/public1.png) | ![sec1](screenshots/sec1.png) | ![tamper](screenshots/tamper.png) |
-| ![public2](screenshots/public2.png) | ![sec2](screenshots/sec2.png) | ![setting](screenshots/setting.png) |
+Requirements: Go 1.26+, Node.js 22+, npm and make. A running VictoriaMetrics instance is required for metrics.
 
-## Quick Start
-
-### SQLite
-
-```bash
-curl -O https://raw.githubusercontent.com/pika-monitor/pika/main/docker-compose.sqlite.yml
-curl -o config.yaml https://raw.githubusercontent.com/pika-monitor/pika/main/config.sqlite.yaml
-# Edit config.yaml: change JWT secret and admin password
-docker compose -f docker-compose.sqlite.yml up -d
-# Open http://localhost:8080  — default admin / admin123
+```sh
+git clone https://github.com/Selei1983/YuanLook.git
+cd YuanLook
+git clone https://github.com/pika-monitor/pika-default-theme.git ../pika-default-theme
+git -C ../pika-default-theme checkout "$(cat .github/default-theme.ref)"
+make build-web
+go build -o bin/yuanlook ./cmd/serv
+cp config.sqlite.yaml config.yaml
 ```
 
-See [SQLite guide](./docs/deployment-sqlite.md).
+Edit `config.yaml`: set your admin password hash, JWT secret and VictoriaMetrics URL. Then run:
 
-### PostgreSQL
-
-```bash
-curl -O https://raw.githubusercontent.com/pika-monitor/pika/main/docker-compose.postgresql.yml
-curl -o config.yaml https://raw.githubusercontent.com/pika-monitor/pika/main/config.postgresql.yaml
-# Edit config.yaml: change database password, JWT secret and admin password
-docker compose -f docker-compose.postgresql.yml up -d
-# Open http://localhost:8080  — default admin / admin123
+```sh
+./bin/yuanlook serve --config config.yaml
 ```
 
-See [PostgreSQL guide](./docs/deployment-postgresql.md).
+Build the required agents from `./cmd/agent`, or use `make build-agents` with UPX installed for the full upstream platform matrix. Built-in agent downloads require those binaries in `bin/agents`.
 
-## Docs
+The Go module path, agent protocol, service names and parts of the UI retain upstream naming for compatibility. The default theme is a separately maintained Pika project, pinned by `.github/default-theme.ref`.
 
-- [Features](./docs/features.md)
-- [SQLite deployment](./docs/deployment-sqlite.md)
-- [PostgreSQL deployment](./docs/deployment-postgresql.md)
-- [Common config](./docs/common-config.md)
+## Validation
 
-## Requirements
+```sh
+go test ./internal/... ./pkg/agent/...
+npm ci --prefix web
+npm run build --prefix web
+npm run lint --prefix web
+```
 
-- Docker 20.10+
-- Docker Compose 1.29+ (or `docker compose` v2)
+These checks passed locally for the private-mode implementation. Real-server deployment and third-party OAuth provider flows have not yet been exercised. Upstream image/release publishing workflows are restricted to the upstream repository; YuanLook runs a separate validation workflow.
 
-## Community
+## Attribution
 
-- Community: See https://pika.termark.app for community channels.
-
-
----
-
-<div align="center">
-
-**Pika — keep every probe visible.**
-
-</div>
+Derived from Pika commit `f391cb15a60efdc979672baba915cb85e67e8711`. Original copyright and Apache-2.0 license are preserved. YuanLook is an independent derivative and is not an official Pika release. See [UPSTREAM.md](UPSTREAM.md).

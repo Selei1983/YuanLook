@@ -58,14 +58,14 @@ const BatchVisibilityModal = ({open, agentIds, onCancel, onSuccess}: BatchVisibi
             onOk={handleOk}
             onCancel={handleCancel}
             confirmLoading={loading}
-            destroyOnClose
+            destroyOnHidden
             width={500}
         >
             <Form
                 form={form}
                 layout="vertical"
                 initialValues={{
-                    visibility: 'public',
+                    visibility: 'private',
                 }}
             >
                 <Form.Item
@@ -74,13 +74,11 @@ const BatchVisibilityModal = ({open, agentIds, onCancel, onSuccess}: BatchVisibi
                     rules={[{required: true, message: '请选择可见性'}]}
                 >
                     <Radio.Group>
-                        <Radio value="public">匿名可见</Radio>
                         <Radio value="private">登录可见</Radio>
                     </Radio.Group>
                 </Form.Item>
                 <div className="text-sm text-gray-500 mt-2">
-                    <p>• 匿名可见：未登录用户也可以查看探针信息</p>
-                    <p>• 登录可见：仅登录用户可以查看探针信息</p>
+                    <p>当前为私有模式，仅登录用户可以查看探针信息</p>
                 </div>
             </Form>
         </Modal>

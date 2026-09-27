@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   create-release:
+    # Upstream publishing is not enabled for YuanLook.
+    if: github.repository == 'pika-monitor/pika'
     runs-on: ubuntu-latest
     steps:
       # 检出代码

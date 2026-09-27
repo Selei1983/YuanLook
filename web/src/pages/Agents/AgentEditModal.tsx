@@ -54,7 +54,7 @@ const AgentEditModal = ({open, agentId, existingTags, onCancel, onSuccess}: Agen
             name: agent.name,
             tags: agent.tags || [],
             expireTime: agent.expireTime ? dayjs(agent.expireTime) : null,
-            visibility: agent.visibility || 'public',
+            visibility: 'private',
             remark: agent.remark ?? '',
         });
     }, [open, isEditMode, agent, form]);
@@ -81,7 +81,7 @@ const AgentEditModal = ({open, agentId, existingTags, onCancel, onSuccess}: Agen
             const values = await form.validateFields();
             const payload: Record<string, any> = {
                 name: values.name,
-                visibility: values.visibility || 'public',
+                visibility: values.visibility || 'private',
                 tags: values.tags || [],
                 remark: values.remark || '',
             };
@@ -144,12 +144,11 @@ const AgentEditModal = ({open, agentId, existingTags, onCancel, onSuccess}: Agen
                     label="可见性"
                     name="visibility"
                     rules={[{required: true, message: '请选择可见性'}]}
-                    extra="控制探针在公开页面的可见性"
+                    extra="当前为私有模式，所有探针仅登录后可见"
                 >
                     <Select
                         placeholder="请选择可见性"
                         options={[
-                            {label: '匿名可见', value: 'public'},
                             {label: '登录可见', value: 'private'},
                         ]}
                     />

@@ -148,28 +148,7 @@ func setupApi(app *orz.App, components *AppComponents) error {
 		publicApi.GET("/agent/install.sh", components.AgentHandler.GetInstallScript)
 	}
 
-	// 公开接口（支持可选认证）- 已登录返回全部数据，未登录只返回公开数据
-	publicApiWithOptionalAuth := e.Group("/api")
-	publicApiWithOptionalAuth.Use(OptionalJWTAuthMiddleware(components.AccountHandler))
-	{
-		// 探针信息（公开访问，支持可选认证）- 用于公共展示页面
-		publicApiWithOptionalAuth.GET("/agents", components.AgentHandler.GetAgents)
-		publicApiWithOptionalAuth.GET("/agents/tags", components.AgentHandler.GetTags)
-		publicApiWithOptionalAuth.GET("/agents/:id", components.AgentHandler.Get)
-		publicApiWithOptionalAuth.GET("/agents/:id/metrics", components.AgentHandler.GetMetrics)
-		publicApiWithOptionalAuth.GET("/agents/:id/metrics/latest", components.AgentHandler.GetLatestMetrics)
-		publicApiWithOptionalAuth.GET("/agents/:id/network-interfaces", components.AgentHandler.GetAvailableNetworkInterfaces)
-
-		// 监控统计数据（公开访问，支持可选认证）- 用于公共展示页面
-		publicApiWithOptionalAuth.GET("/monitors", components.MonitorHandler.GetMonitors)
-		publicApiWithOptionalAuth.GET("/monitors/sparklines", components.MonitorHandler.GetSparklines)
-		publicApiWithOptionalAuth.GET("/monitors/:id/stats", components.MonitorHandler.GetStatsByID)
-		publicApiWithOptionalAuth.GET("/monitors/:id/agents", components.MonitorHandler.GetAgentStatsByID)
-		publicApiWithOptionalAuth.GET("/monitors/:id/history", components.MonitorHandler.GetHistoryByID)
-
-		// Logo（公开访问）- 用于公共页面只获取 Logo
-		publicApiWithOptionalAuth.GET("/logo", components.PropertyHandler.GetLogo)
-	}
+	setupPrivateReadAPI(e, components)
 
 	// WebSocket 路由（探针连接）
 	e.GET("/ws/agent", components.AgentHandler.HandleWebSocket)
@@ -293,12 +272,37 @@ func setupApi(app *orz.App, components *AppComponents) error {
 	// GitHub 认证路由（如果启用）
 	publicApi.POST("/auth/github/callback", components.AccountHandler.GitHubLogin)
 
-	// 管理前端从 web/dist 由 Echo 直接加载；活动公开主题由主题服务选择独立目录。
+	// 管理前端从 web/dist 由 Echo 直接加载；活动私有看板主题由主题服务选择独立目录。
 	e.Static("/admin/assets/", filepath.Join(assets.WebDir(), "assets"), handler.ImmutableStaticHeaders)
-	e.GET("/t/*", components.WebHandler.ServeThemeAsset)
-	e.GET("/*", components.WebHandler.ServeSPA)
+	e.GET("/t/*", components.WebHandler.ServeThemeAsset, handler.PrivateReadAuth(components.AccountHandler, false))
+	e.GET("/*", components.WebHandler.ServeSPA, handler.PrivatePages(components.AccountHandler))
 
 	return nil
+}
+
+func setupPrivateReadAPI(e *echo.Echo, components *AppComponents) {
+	// 数据接口始终要求登录，包括历史标记为 public 的资源。
+	privateApi := e.Group("/api")
+	privateApi.Use(handler.PrivateReadAuth(components.AccountHandler, false))
+	{
+		// 私有看板的探针信息
+		privateApi.GET("/agents", components.AgentHandler.GetAgents)
+		privateApi.GET("/agents/tags", components.AgentHandler.GetTags)
+		privateApi.GET("/agents/:id", components.AgentHandler.Get)
+		privateApi.GET("/agents/:id/metrics", components.AgentHandler.GetMetrics)
+		privateApi.GET("/agents/:id/metrics/latest", components.AgentHandler.GetLatestMetrics)
+		privateApi.GET("/agents/:id/network-interfaces", components.AgentHandler.GetAvailableNetworkInterfaces)
+
+		// 私有看板的监控统计数据
+		privateApi.GET("/monitors", components.MonitorHandler.GetMonitors)
+		privateApi.GET("/monitors/sparklines", components.MonitorHandler.GetSparklines)
+		privateApi.GET("/monitors/:id/stats", components.MonitorHandler.GetStatsByID)
+		privateApi.GET("/monitors/:id/agents", components.MonitorHandler.GetAgentStatsByID)
+		privateApi.GET("/monitors/:id/history", components.MonitorHandler.GetHistoryByID)
+
+		// 登录后的 Logo
+		privateApi.GET("/logo", components.PropertyHandler.GetLogo)
+	}
 }
 
 func autoMigrate(database *gorm.DB) error {

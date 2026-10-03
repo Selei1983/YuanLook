@@ -34,11 +34,6 @@ func Run(configPath string) {
 }
 
 func setup(app *orz.App) error {
-	// 数据库迁移
-	if err := autoMigrate(app.GetDatabase()); err != nil {
-		return err
-	}
-
 	// 读取应用配置
 	var appConfig config.AppConfig
 	_config := app.GetConfig()
@@ -58,10 +53,24 @@ func setup(app *orz.App) error {
 		appConfig.JWT.ExpiresHours = 168 // 7天
 	}
 
+	return setupWorkspaces(app, &appConfig)
+}
+
+// Each workspace owns its database, service caches, websocket manager and jobs.
+func initializeWorkspace(app *orz.App, appConfig *config.AppConfig, namespace string) (*AppComponents, error) {
+	if err := autoMigrate(app.GetDatabase()); err != nil {
+		return nil, err
+	}
+
 	// 初始化应用组件
-	components, err := InitializeApp(app.Logger(), app.GetDatabase(), &appConfig)
+	components, err := InitializeApp(app.Logger(), app.GetDatabase(), appConfig)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	components.VMClient.SetWorkspace(namespace)
+	if appConfig.VictoriaMetrics != nil {
+		components.VMClient.SetBasicAuth(appConfig.VictoriaMetrics.Username, appConfig.VictoriaMetrics.Password)
 	}
 
 	// 自动化升级数据库
@@ -70,7 +79,7 @@ func setup(app *orz.App) error {
 	}
 
 	// 初始化默认属性配置
-	ctx := context.Background()
+	ctx := app.Context()
 	if err := components.ApiKeyService.FillLegacyApiKeyType(ctx); err != nil {
 		app.Logger().Warn("回填旧版 API Key 类型失败", zap.Error(err))
 		// 不返回错误，ValidateApiKey 仍会兼容空类型旧密钥
@@ -89,34 +98,39 @@ func setup(app *orz.App) error {
 		// 不返回错误，继续启动
 	}
 
+	// 设置API
+	if err := setupApi(app, components); err != nil {
+		return nil, err
+	}
+
+	return components, nil
+}
+
+func startWorkspaceJobs(ctx context.Context, components *AppComponents, logger *zap.Logger) {
+
 	// 启动WebSocket管理器
 	go components.WSManager.Run(ctx)
 
 	// 启动指标监控任务（用于告警检测）
-	go startMetricsMonitoring(ctx, components, app.Logger())
+	go startMetricsMonitoring(ctx, components, logger)
 
 	// 启动服务监控任务调度器
-	monitorScheduler := scheduler.NewMonitorScheduler(components.MonitorService, app.Logger())
+	monitorScheduler := scheduler.NewMonitorScheduler(components.MonitorService, logger)
 	// 将调度器注入到 MonitorService（避免循环依赖）
 	components.MonitorService.SetScheduler(monitorScheduler)
 	monitorScheduler.Start(ctx)
 
 	// 启动流量重置检查任务(每小时检查一次)
-	go startTrafficResetCheck(ctx, components, app.Logger())
+	go startTrafficResetCheck(ctx, components, logger)
 	// 启动机器到期提醒检查任务(每小时检查一次)
-	go startAgentExpireCheck(ctx, components, app.Logger())
+	go startAgentExpireCheck(ctx, components, logger)
 
 	// 启动 DDNS 定时任务
 	go components.DDNSService.Run(ctx)
 	// 启动公网 IP 采集定时任务
 	go components.PublicIPService.Run(ctx)
 
-	// 设置API
-	if err := setupApi(app, components); err != nil {
-		return err
-	}
-
-	return nil
+	go func() { <-ctx.Done(); monitorScheduler.Stop() }()
 }
 
 func setupApi(app *orz.App, components *AppComponents) error {

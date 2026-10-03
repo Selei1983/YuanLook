@@ -10,15 +10,23 @@ YuanLook 基于 [Pika](https://github.com/pika-monitor/pika) 二次开发。**�
 
 - 首页、服务器详情、监控页和管理后台均受服务端登录检查保护。
 - 主机列表、标签、历史与实时指标、服务监控等接口强制鉴权；旧数据即使标记为公开也不能匿名读取。
-- 密码、OIDC、GitHub 登录成功后建立 HttpOnly 页面会话；管理写操作继续使用 Bearer Token / API Key。
+- 密码登录成功后建立 HttpOnly 页面会话；管理写操作继续使用 Bearer Token / API Key。
 - 新增主机、监控默认私有，后台不再提供“匿名可见”选项。
 - 探针连接沿用原有 API Key 认证，不依赖浏览器登录。
 
 具体访问边界、登录引导接口和探针下载例外见 [私有模式说明](docs/private-mode.md)。
 
+## 账号隔离
+
+每个配置账号都有独立工作区：数据库、探针连接、缓存、主题、告警与后台任务相互隔离；指标查询与删除强制限定工作区。原数据库及无工作区标签的历史指标保留给 `admin`，其他账号从空白数据库开始，`admin` 不具有跨账号查看权限。
+
+当前工作区模式支持 SQLite 和配置文件密码账号；启用 OIDC、GitHub OAuth 或使用其他数据库会拒绝启动，避免出现不完整的隔离。多账号必须给 VictoriaMetrics 启用独立 HTTP 认证。
+
+新增账号、备份升级和隔离边界见 [多账号工作区说明](docs/workspaces.md)。
+
 ## 保留的能力
 
-主机资源监控、HTTP/TCP/ICMP 服务检查、告警通知、DDNS、SSH 登录监控、防篡改和 Linux 资产审计。技术栈为 Go + React/TypeScript + SQLite/PostgreSQL + VictoriaMetrics。
+主机资源监控、HTTP/TCP/ICMP 服务检查、告警通知、DDNS、SSH 登录监控、防篡改和 Linux 资产审计。技术栈为 Go + React/TypeScript + SQLite + VictoriaMetrics。
 
 ## 从源码构建
 
@@ -48,7 +56,7 @@ cp config.sqlite.yaml config.yaml
 
 ## 验证状态
 
-私有模式的服务端与探针回归测试、前端生产构建和 ESLint 已在本地通过；尚未完成真实服务器部署及第三方 OAuth 提供商联调。
+私有模式已部署验证。工作区测试包含真实双账号接口、密钥撤销、同 ID 探针注册及指标隔离；当前不启用第三方 OAuth。
 
 ```sh
 go test ./internal/... ./pkg/agent/...

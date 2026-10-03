@@ -6,13 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
 // VMClient VictoriaMetrics 客户端
 type VMClient struct {
+	username     string
+	password     string
+	workspace    *string
 	baseURL      string
 	httpClient   *http.Client
 	writeTimeout time.Duration
@@ -70,6 +75,23 @@ func NewVMClient(baseURL string, writeTimeout, queryTimeout time.Duration) *VMCl
 	}
 }
 
+// SetWorkspace must be called before using the client. The empty namespace is
+// reserved for the legacy owner, whose existing series have no workspace label.
+func (c *VMClient) SetBasicAuth(username, password string) {
+	c.username = username
+	c.password = password
+}
+
+func (c *VMClient) SetWorkspace(namespace string) { c.workspace = &namespace }
+
+const workspaceLabel = "yuanlook_workspace"
+
+func (c *VMClient) scope(params url.Values) {
+	if c.workspace != nil {
+		params.Set("extra_filters[]", "{"+workspaceLabel+"="+strconv.Quote(*c.workspace)+"}")
+	}
+}
+
 // Write 写入指标（VictoriaMetrics JSON Line Format）
 func (c *VMClient) Write(ctx context.Context, metrics []Metric) error {
 	if len(metrics) == 0 {
@@ -83,6 +105,17 @@ func (c *VMClient) Write(ctx context.Context, metrics []Metric) error {
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
 	for _, metric := range metrics {
+		if c.workspace != nil {
+			metric.Metric = maps.Clone(metric.Metric)
+			if metric.Metric == nil {
+				metric.Metric = map[string]string{}
+			}
+			// Do not trust labels supplied by an agent, including the legacy namespace.
+			delete(metric.Metric, workspaceLabel)
+			if *c.workspace != "" {
+				metric.Metric[workspaceLabel] = *c.workspace
+			}
+		}
 		if err := encoder.Encode(metric); err != nil {
 			return fmt.Errorf("encode metric failed: %w", err)
 		}
@@ -95,6 +128,9 @@ func (c *VMClient) Write(ctx context.Context, metrics []Metric) error {
 
 	req.Header.Set("Content-Type", "application/x-ndjson")
 
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("write metrics failed: %w", err)
@@ -145,6 +181,7 @@ func (c *VMClient) QueryRange(ctx context.Context, query string, start, end time
 	defer cancel()
 
 	params := url.Values{}
+	c.scope(params)
 	params.Set("query", query)
 	params.Set("start", fmt.Sprintf("%d", start.Unix()))
 	params.Set("end", fmt.Sprintf("%d", end.Unix()))
@@ -162,6 +199,9 @@ func (c *VMClient) QueryRange(ctx context.Context, query string, start, end time
 		return nil, fmt.Errorf("create request failed: %w", err)
 	}
 
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("query range failed: %w", err)
@@ -191,6 +231,7 @@ func (c *VMClient) Query(ctx context.Context, query string) (*QueryResult, error
 	defer cancel()
 
 	params := url.Values{}
+	c.scope(params)
 	params.Set("query", query)
 
 	reqURL := fmt.Sprintf("%s/api/v1/query?%s", c.baseURL, params.Encode())
@@ -200,6 +241,9 @@ func (c *VMClient) Query(ctx context.Context, query string) (*QueryResult, error
 		return nil, fmt.Errorf("create request failed: %w", err)
 	}
 
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
@@ -233,6 +277,7 @@ func (c *VMClient) DeleteSeries(ctx context.Context, matchers []string) error {
 	defer cancel()
 
 	params := url.Values{}
+	c.scope(params)
 	for _, matcher := range matchers {
 		params.Add("match[]", matcher)
 	}
@@ -243,6 +288,9 @@ func (c *VMClient) DeleteSeries(ctx context.Context, matchers []string) error {
 		return fmt.Errorf("create request failed: %w", err)
 	}
 
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("delete series failed: %w", err)
@@ -304,6 +352,7 @@ func (c *VMClient) GetLabelValues(ctx context.Context, labelName string, match [
 	defer cancel()
 
 	params := url.Values{}
+	c.scope(params)
 	for _, m := range match {
 		params.Add("match[]", m)
 	}
@@ -315,6 +364,9 @@ func (c *VMClient) GetLabelValues(ctx context.Context, labelName string, match [
 		return nil, fmt.Errorf("create request failed: %w", err)
 	}
 
+	if c.username != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("get label values failed: %w", err)

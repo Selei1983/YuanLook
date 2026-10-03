@@ -113,6 +113,9 @@ func NewThemeService(logger *zap.Logger, propertyService *PropertyService, cfg *
 		themeCfg = cfg.Theme
 	}
 	themeDir := strings.TrimSpace(os.Getenv("PIKA_THEME_DIR"))
+	if cfg != nil && cfg.WorkspaceThemeDir != "" {
+		themeDir = cfg.WorkspaceThemeDir
+	}
 	if themeDir == "" {
 		themeDir = strings.TrimSpace(themeCfg.Dir)
 	}

@@ -15,6 +15,9 @@ server:
     - "0.0.0.0/0"
 
 App:
+  Workspaces:
+    LegacyOwner: "admin" # 原数据库永久归属账号；首次启动后不可随意更改
+    Dir: "./data/workspaces" # 新账号数据库与主题目录
   # 可安装公开主题。PIKA_THEME_DIR 非空时会覆盖 Dir。
   Theme:
     Dir: "./data/themes"
@@ -53,6 +56,8 @@ App:
   VictoriaMetrics:
     Enabled: true
     URL: "http://victoriametrics:8428"
+    Username: "" # 多账号必须配置，且 VM 需启用 -httpAuth.username
+    Password: "" # 仅服务端保存；与 VM 的 -httpAuth.password 相同
     RetentionDays: 7 # 数据保留时长
     WriteTimeout: 60 # 写超时时间（秒）
     QueryTimeout: 60 # 读超时时间（秒）

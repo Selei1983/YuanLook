@@ -28,6 +28,37 @@ func (h *AgentHandler) HandleWebSocket(c *echo.Context) error {
 		return err
 	}
 
+	return h.handleRegisteredWebSocket(c, conn, registerReq)
+}
+
+// RouteWebSocket authenticates the first registration message BEFORE assigning
+// the connection to a workspace. Existing probes do not need a protocol change.
+func (h *AgentHandler) RouteWebSocket(resolve func(context.Context, string) (*AgentHandler, error)) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		conn, err := h.upgrader.Upgrade(c.Response(), c.Request(), nil)
+		if err != nil {
+			return err
+		}
+		conn.SetReadLimit(1024 * 1024)
+		reg, err := h.readRegisterRequest(conn)
+		if err != nil {
+			conn.Close()
+			return nil
+		}
+		target, err := resolve(c.Request().Context(), reg.ApiKey)
+		if err != nil {
+			_ = h.sendRegisterError(conn, "invalid agent key")
+			conn.Close()
+			return nil
+		}
+		conn.SetReadLimit(0)
+		// HTTP has already been upgraded; errors must not write an HTTP response.
+		_ = target.handleRegisteredWebSocket(c, conn, reg)
+		return nil
+	}
+}
+
+func (h *AgentHandler) handleRegisteredWebSocket(c *echo.Context, conn *websocket.Conn, registerReq *protocol.RegisterRequest) error {
 	// 注册探针 - 使用独立的context,不依赖HTTP请求的context
 	h.enabledMu.RLock()
 	agent, err := h.agentService.RegisterAgent(context.Background(), c.RealIP(), &registerReq.AgentInfo, registerReq.ApiKey)

@@ -10,15 +10,21 @@ YuanLook is a self-hosted server monitoring and management project based on [Pik
 
 - Server-side login checks protect the dashboard, server details and management pages.
 - Host lists, tags, metrics and service-monitoring APIs reject anonymous, forged and expired credentials, including for legacy records marked public.
-- Password, OIDC and GitHub sign-in establish an HttpOnly browser session; administrative mutations retain Bearer-token/API-key authentication.
+- Password sign-in establish an HttpOnly browser session; administrative mutations retain Bearer-token/API-key authentication.
 - New resources default to private, and the management UI no longer offers anonymous visibility.
 - Probe registration retains its API-key authentication and does not require a browser session.
 
 See [private-mode behavior and boundaries](docs/private-mode.md), including the minimal public login/bootstrap and agent-download endpoints.
 
+## Isolated accounts
+
+Each configured password account owns an independent workspace: SQLite database, service caches, probe connections, themes, configuration and scheduled jobs. Metric reads/deletes are scoped to that workspace. The original database and historical unlabelled metrics remain with `admin`; new accounts start empty. The legacy owner has no cross-account access.
+
+Workspace mode currently requires SQLite and configured password accounts. OAuth-enabled or non-SQLite configurations fail closed. Multiple accounts require authenticated VictoriaMetrics storage. See [workspace operations and upgrade notes](docs/workspaces.md).
+
 ## Features
 
-Go agents and server, a React/TypeScript management UI, SQLite or PostgreSQL for business data, and VictoriaMetrics for time-series metrics. Inherited features include CPU/memory/disk/network monitoring, HTTP/TCP/ICMP checks, notifications, DDNS, SSH login monitoring, tamper protection and Linux asset auditing.
+Go agents and server, a React/TypeScript management UI, SQLite for business data, and VictoriaMetrics for time-series metrics. Inherited features include CPU/memory/disk/network monitoring, HTTP/TCP/ICMP checks, notifications, DDNS, SSH login monitoring, tamper protection and Linux asset auditing.
 
 ## Build from source
 
@@ -55,7 +61,7 @@ npm run build --prefix web
 npm run lint --prefix web
 ```
 
-These checks passed locally for the private-mode implementation. Real-server deployment and third-party OAuth provider flows have not yet been exercised. Upstream image/release publishing workflows are restricted to the upstream repository; YuanLook runs a separate validation workflow.
+Private mode has been deployed and verified. Workspace tests cover account isolation, key revocation, probe registration and metric boundaries. Third-party OAuth is not enabled in workspace mode. Upstream image/release publishing workflows are restricted to the upstream repository; YuanLook runs a separate validation workflow.
 
 ## Attribution
 

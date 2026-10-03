@@ -7,13 +7,15 @@ import (
 
 // AppConfig 应用配置
 type AppConfig struct {
-	JWT             JWTConfig          `json:"JWT"`
-	Users           map[string]string  `json:"Users"`           // 用户名 -> bcrypt加密的密码
-	OIDC            *OIDCConfig        `json:"OIDC"`            // OIDC配置（可选）
-	GitHub          *GitHubOAuthConfig `json:"GitHub"`          // GitHub OAuth配置（可选）
-	GeoIP           *GeoIPConfig       `json:"GeoIP"`           // GeoIP配置（可选）
-	VictoriaMetrics *VMConfig          `json:"VictoriaMetrics"` // VictoriaMetrics配置（可选）
-	Theme           *ThemeConfig       `json:"Theme"`           // 主题系统配置（可选）
+	WorkspaceThemeDir string             `json:"-"` // Internal override; never shared between workspaces.
+	Workspaces        *WorkspaceConfig   `json:"Workspaces"`
+	JWT               JWTConfig          `json:"JWT"`
+	Users             map[string]string  `json:"Users"`           // 用户名 -> bcrypt加密的密码
+	OIDC              *OIDCConfig        `json:"OIDC"`            // OIDC配置（可选）
+	GitHub            *GitHubOAuthConfig `json:"GitHub"`          // GitHub OAuth配置（可选）
+	GeoIP             *GeoIPConfig       `json:"GeoIP"`           // GeoIP配置（可选）
+	VictoriaMetrics   *VMConfig          `json:"VictoriaMetrics"` // VictoriaMetrics配置（可选）
+	Theme             *ThemeConfig       `json:"Theme"`           // 主题系统配置（可选）
 }
 
 // ThemeConfig 可安装主题系统配置。
@@ -81,9 +83,18 @@ type GeoIPConfig struct {
 
 // VMConfig VictoriaMetrics配置
 type VMConfig struct {
+	Username      string `json:"Username"`
+	Password      string `json:"Password"`
 	Enabled       bool   `json:"Enabled"`       // 是否启用VictoriaMetrics
 	URL           string `json:"URL"`           // VictoriaMetrics地址
 	RetentionDays int    `json:"RetentionDays"` // 数据保留天数（用于文档说明）
 	WriteTimeout  int    `json:"WriteTimeout"`  // 写入超时（秒）
 	QueryTimeout  int    `json:"QueryTimeout"`  // 查询超时（秒）
+}
+
+// WorkspaceConfig binds the original database to a single account. Other accounts
+// receive independent SQLite databases and filesystem directories.
+type WorkspaceConfig struct {
+	LegacyOwner string `json:"LegacyOwner"`
+	Dir         string `json:"Dir"`
 }

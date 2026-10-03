@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { App, Button, ConfigProvider, Form, Input, theme } from 'antd';
 import { GithubOutlined, GlobalOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Moon, Sun } from 'lucide-react';
@@ -17,7 +17,7 @@ const Login = () => {
     const [passwordEnabled, setPasswordEnabled] = useState(true);
     const [oidcLoading, setOidcLoading] = useState(false);
     const [githubLoading, setGithubLoading] = useState(false);
-    const navigate = useNavigate();
+    const [registrationEnabled, setRegistrationEnabled] = useState(false);
     const { message: messageApi } = App.useApp();
     const { resolvedColorMode: appliedTheme, setColorMode: setTheme } = useColorMode();
     const themeButtonRef = useRef<HTMLButtonElement>(null);
@@ -32,6 +32,7 @@ const Login = () => {
             setOidcEnabled(response.data.oidcEnabled);
             setGithubEnabled(response.data.githubEnabled);
             setPasswordEnabled(response.data.passwordEnabled);
+            setRegistrationEnabled(response.data.registrationEnabled);
         } catch (error) {
             console.error('获取认证配置失败:', error);
         }
@@ -45,7 +46,7 @@ const Login = () => {
             localStorage.setItem('token', token);
             localStorage.setItem('userInfo', JSON.stringify(user));
             messageApi.success('欢迎回来');
-            navigate('/admin/agents');
+            window.location.assign('/admin/agents');
         } catch (error: any) {
             messageApi.error(error.response?.data?.message || '账号或密码错误');
         } finally {
@@ -201,6 +202,7 @@ const Login = () => {
                             </Form.Item>
                         </Form>
                     )}
+                    {registrationEnabled && <p className="mt-5 text-center text-sm"><Link to="/admin/register">还没有账号？注册新账号</Link></p>}
 
                     {/* 第三方登录区域 */}
                     {(oidcEnabled || githubEnabled) && (

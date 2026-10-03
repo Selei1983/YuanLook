@@ -1,5 +1,6 @@
 // 用户相关（简化版，仅用于登录）
 export interface User {
+    role?: 'admin' | 'user';
     username: string;
 }
 

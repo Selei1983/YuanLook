@@ -2,6 +2,9 @@ import {createBrowserRouter, Navigate} from 'react-router-dom';
 import {type ComponentType, lazy, type LazyExoticComponent, Suspense} from 'react';
 import PrivateRoute from '@/components/PrivateRoute';
 
+const RegisterPage = lazy(() => import('@/pages/Login/Register'));
+const AccountsPage = lazy(() => import('@/pages/Accounts'));
+const PasswordPage = lazy(() => import('@/pages/Accounts/Password'));
 const LoginPage = lazy(() => import('@/pages/Login'));
 const GitHubCallbackPage = lazy(() => import('@/pages/Login/GitHubCallback'));
 const OIDCCallbackPage = lazy(() => import('@/pages/Login/OIDCCallback'));
@@ -29,6 +32,7 @@ const lazyLoad = (Component: LazyExoticComponent<ComponentType<any>>) => (
 );
 
 export default createBrowserRouter([
+    {path: '/admin/register', element: lazyLoad(RegisterPage)},
     {path: '/admin/login', element: lazyLoad(LoginPage)},
     {path: '/admin/github/callback', element: lazyLoad(GitHubCallbackPage)},
     {path: '/admin/oidc/callback', element: lazyLoad(OIDCCallbackPage)},
@@ -47,6 +51,8 @@ export default createBrowserRouter([
             {path: 'monitors', element: lazyLoad(MonitorListPage)},
             {path: 'ddns', element: lazyLoad(DDNSPage)},
             {path: 'alert-records', element: lazyLoad(AlertRecordListPage)},
+            {path: 'accounts', element: lazyLoad(AccountsPage)},
+            {path: 'account/password', element: lazyLoad(PasswordPage)},
             {path: 'settings', element: lazyLoad(SettingsPage)},
         ],
     },

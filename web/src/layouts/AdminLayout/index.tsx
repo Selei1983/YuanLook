@@ -6,6 +6,7 @@ import {AdminSider} from './Sider';
 import {AdminMobileNav} from './MobileNav';
 import {useThemeToggle} from './useThemeToggle';
 import {HEADER_HEIGHT} from './menu';
+import {getCurrentUser} from '@/api/auth';
 import type {User} from '@/types';
 
 const AdminLayout = () => {
@@ -77,7 +78,7 @@ const AdminLayout = () => {
             navigate('/admin/login');
             return;
         }
-        setUserInfo(JSON.parse(userInfoStr));
+        getCurrentUser().then(({data}) => { setUserInfo(data); localStorage.setItem('userInfo', JSON.stringify(data)); }).catch(() => navigate('/admin/login'));
     }, []);
 
     return (
@@ -89,7 +90,7 @@ const AdminLayout = () => {
                     themeButtonRef={themeButtonRef}
                     onToggleTheme={toggleTheme}
                 />
-                <AdminSider/>
+                <AdminSider isAdmin={userInfo?.role === 'admin'}/>
                 <div className="min-h-screen" style={{paddingTop: HEADER_HEIGHT}}>
                     <main
                         className={isWideCompactPage
@@ -102,7 +103,7 @@ const AdminLayout = () => {
                         </div>
                     </main>
                 </div>
-                <AdminMobileNav/>
+                <AdminMobileNav isAdmin={userInfo?.role === 'admin'}/>
             </div>
         </ConfigProvider>
     );

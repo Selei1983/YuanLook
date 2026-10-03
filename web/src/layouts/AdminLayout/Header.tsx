@@ -44,6 +44,7 @@ export const AdminHeader = ({userInfo, appliedTheme, themeButtonRef, onToggleThe
     };
 
     const userMenuItems: MenuProps['items'] = [
+        {key: 'password', icon: <UserIcon size={16}/>, label: '修改密码', onClick: () => navigate('/admin/account/password')},
         {key: 'logout', icon: <LogOut size={16} strokeWidth={2}/>, label: '退出登录', onClick: handleLogout},
     ];
 
@@ -79,7 +80,7 @@ export const AdminHeader = ({userInfo, appliedTheme, themeButtonRef, onToggleThe
                             onClick={() => window.open('/', '_blank')}
                             style={{color: appliedTheme === 'dark' ? '#cbd5e1' : '#646a73', fontSize: 12}}
                         >
-                            公共页面
+                            我的看板
                         </Button>
                     </div>
                     <Button

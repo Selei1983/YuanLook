@@ -1,4 +1,4 @@
-import { get, post } from './request';
+import { get, post, put } from './request';
 import type { LoginRequest, LoginResponse } from '../types';
 
 // 认证配置
@@ -6,6 +6,7 @@ export interface AuthConfig {
     oidcEnabled: boolean;
     githubEnabled: boolean;
     passwordEnabled: boolean;
+    registrationEnabled: boolean;
 }
 
 // OIDC 认证 URL
@@ -56,12 +57,21 @@ export const logout = () => {
 };
 
 // 获取当前用户信息
-export interface CurrentUser {
-    userId: string;
+export interface Account {
     username: string;
+    role: 'admin' | 'user';
+    enabled: boolean;
+    createdAt: string;
 }
+export type CurrentUser = Account;
 
 export const getCurrentUser = () => {
     return get<CurrentUser>('/admin/account/info');
 };
 
+
+export const register = (data: LoginRequest) => post<Account>('/register', data);
+export const getAccounts = () => get<Account[]>('/admin/accounts');
+export const createAccount = (data: LoginRequest) => post<Account>('/admin/accounts', data);
+export const updateAccount = (username: string, data: {password?: string; enabled?: boolean}) => put(`/admin/accounts/${encodeURIComponent(username)}`, data);
+export const changePassword = (data: {currentPassword: string; password: string}) => post('/admin/account/password', data);

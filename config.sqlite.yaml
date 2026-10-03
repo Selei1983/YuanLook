@@ -16,6 +16,7 @@ server:
 
 App:
   Workspaces:
+    RegistrationEnabled: true # 开放注册，注册后立即启用独立空间
     LegacyOwner: "admin" # 原数据库永久归属账号；首次启动后不可随意更改
     Dir: "./data/workspaces" # 新账号数据库与主题目录
   # 可安装公开主题。PIKA_THEME_DIR 非空时会覆盖 Dir。
@@ -26,7 +27,7 @@ App:
     Secret: "" # 替换为任意 UUID 字符串
     ExpiresHours: 168 # 7天
 
-  # Basic Auth 用户配置（使用 bcrypt 加密）
+  # 引导账号（使用 bcrypt 加密）；首次导入后在网页管理密码与启停状态
   # 生成密码命令: htpasswd -nBC 12 '' | tr -d ':\n'
   # 或使用 Go: bcrypt.GenerateFromPassword([]byte("your_password"), bcrypt.DefaultCost)
   Users:

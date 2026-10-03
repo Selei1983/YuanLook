@@ -3,7 +3,7 @@ import {menuItems} from './menu';
 import {cn} from '@/lib/utils';
 import {useRuntimeConfig} from '@/api/runtime';
 
-export const AdminSider = () => {
+export const AdminSider = ({isAdmin = false}: {isAdmin?: boolean}) => {
     const location = useLocation();
     const navigate = useNavigate();
     const {data: runtime} = useRuntimeConfig();
@@ -27,7 +27,7 @@ export const AdminSider = () => {
                 </div>
                 <div className="px-[22px] pt-[18px] pb-2 text-[10px] font-semibold tracking-[0.13em] text-gray-200/45">管理</div>
                 <nav className="thin-scrollbar flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-5">
-                    {menuItems.map((item) => {
+                    {menuItems.filter(item => !item.adminOnly || isAdmin).map((item) => {
                         const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
                         return (
                             <button

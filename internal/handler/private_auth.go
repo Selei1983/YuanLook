@@ -73,7 +73,7 @@ func PrivatePages(account *AccountHandler) echo.MiddlewareFunc {
 		protected := PrivateReadAuth(account, true)(next)
 		return func(c *echo.Context) error {
 			switch c.Request().URL.Path {
-			case "/admin/login", "/admin/github/callback", "/admin/oidc/callback":
+			case "/admin/login", "/admin/register", "/admin/github/callback", "/admin/oidc/callback":
 				return next(c)
 			}
 			path := c.Request().URL.Path

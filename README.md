@@ -66,3 +66,9 @@ Private mode has been deployed and verified. Workspace tests cover account isola
 ## Attribution
 
 Derived from Pika commit `f391cb15a60efdc979672baba915cb85e67e8711`. Original copyright and Apache-2.0 license are preserved. YuanLook is an independent derivative and is not an official Pika release. See [UPSTREAM.md](UPSTREAM.md).
+
+## Account registration and management
+
+Users can register at `/admin/register` and immediately receive an isolated workspace. The legacy owner can create accounts, enable/disable login access and reset passwords at `/admin/accounts`; all users can change their own password from the profile menu. Existing configuration accounts are imported once into the primary SQLite database. Later password and status changes persist across restarts. Password changes and status updates revoke existing user sessions.
+
+Registration is enabled by default; set `App.Workspaces.RegistrationEnabled: false` to close it. Registration or multiple accounts require authenticated VictoriaMetrics storage. Disabling an account preserves its data and background monitoring; see [workspace operations and backup notes](docs/workspaces.md).

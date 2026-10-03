@@ -1,18 +1,15 @@
 package internal
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-orz/orz"
@@ -28,8 +25,13 @@ type workspace struct {
 }
 
 type workspaceRouter struct {
-	owner  string
-	spaces map[string]*workspace
+	mu      sync.RWMutex
+	parent  *orz.App
+	cfg     *config.AppConfig
+	root    string
+	running bool
+	owner   string
+	spaces  map[string]*workspace
 }
 
 // workspaceID is stable across restarts and safe as a directory/metric label.
@@ -63,15 +65,16 @@ func bindLegacyOwner(path, owner string) error {
 }
 
 func setupWorkspaces(app *orz.App, cfg *config.AppConfig) error {
-	if len(cfg.Users) > 1 {
-		if err := verifyMetricsAuthentication(cfg.VictoriaMetrics); err != nil {
-			return err
-		}
-	}
 	router, err := buildWorkspaceRouter(app, cfg)
 	if err != nil {
 		return err
 	}
+	if len(router.spaces) > 1 || registrationEnabled(cfg) {
+		if err := verifyMetricsAuthentication(cfg.VictoriaMetrics); err != nil {
+			return err
+		}
+	}
+	router.running = true
 	for _, space := range router.spaces {
 		startWorkspaceJobs(app.Context(), space.components, space.app.Logger())
 	}
@@ -109,55 +112,75 @@ func buildWorkspaceRouter(app *orz.App, cfg *config.AppConfig) (*workspaceRouter
 	if err := bindLegacyOwner(dbPath+".workspace-owner", owner); err != nil {
 		return nil, err
 	}
-	router := &workspaceRouter{owner: owner, spaces: map[string]*workspace{}}
-	names := make([]string, 0, len(cfg.Users))
-	for name, hash := range cfg.Users {
-		if strings.TrimSpace(name) != name || name == "" || hash == "" {
-			return nil, fmt.Errorf("invalid workspace account configuration")
-		}
-		names = append(names, name)
+	router := &workspaceRouter{owner: owner, spaces: map[string]*workspace{}, parent: app, cfg: cfg, root: root}
+	if err := router.initializeAccounts(); err != nil {
+		return nil, err
 	}
-	sort.Strings(names)
-	for _, name := range names {
-		child := orz.NewApp()
-		child.SetLogger(app.Logger().With(zap.String("workspace", name)))
-		child.SetEcho(echo.New())
-		child.GetEcho().IPExtractor = app.GetEcho().IPExtractor
-		childCfg := *cfg
-		childCfg.Users = map[string]string{name: cfg.Users[name]}
-		namespace := ""
-		if name == owner {
-			child.SetDatabase(app.GetDatabase())
-		} else {
-			namespace = workspaceID(name)
-			dir := filepath.Join(root, namespace)
-			if err := os.MkdirAll(dir, 0700); err != nil {
-				return nil, err
-			}
-			dbCfg := app.GetConfig().Database
-			dbCfg.URL = ""
-			dbCfg.Sqlite.Path = filepath.Join(dir, "pika.db")
-			db, err := orz.ConnectDatabaseWithLogger(dbCfg, child.Logger())
-			if err != nil {
-				return nil, err
-			}
-			child.SetDatabase(db)
-			childCfg.WorkspaceThemeDir = filepath.Join(dir, "themes")
-		}
-		components, err := initializeWorkspace(child, &childCfg, namespace)
+	var accounts []platformAccount
+	if err := app.GetDatabase().Order("username").Find(&accounts).Error; err != nil {
+		return nil, err
+	}
+	for _, account := range accounts {
+		space, err := router.newWorkspace(account.Username, account.PasswordHash)
 		if err != nil {
-			return nil, fmt.Errorf("initialize workspace %q: %w", name, err)
+			return nil, err
 		}
-		router.spaces[name] = &workspace{app: child, components: components}
+		router.spaces[account.Username] = space
 	}
+
 	return router, nil
 }
 
+func (r *workspaceRouter) newWorkspace(name, hash string) (*workspace, error) {
+	child := orz.NewApp()
+	child.SetLogger(r.parent.Logger().With(zap.String("workspace", name)))
+	child.SetEcho(echo.New())
+	child.GetEcho().IPExtractor = r.parent.GetEcho().IPExtractor
+	childCfg := *r.cfg
+	childCfg.Users = map[string]string{name: hash}
+	namespace := ""
+	if name == r.owner {
+		child.SetDatabase(r.parent.GetDatabase())
+	} else {
+		namespace = workspaceID(name)
+		dir := filepath.Join(r.root, namespace)
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return nil, err
+		}
+		dbCfg := r.parent.GetConfig().Database
+		dbCfg.URL = ""
+		dbCfg.Sqlite.Path = filepath.Join(dir, "pika.db")
+		db, err := orz.ConnectDatabaseWithLogger(dbCfg, child.Logger())
+		if err != nil {
+			return nil, err
+		}
+		child.SetDatabase(db)
+		childCfg.WorkspaceThemeDir = filepath.Join(dir, "themes")
+	}
+	components, err := initializeWorkspace(child, &childCfg, namespace)
+	if err != nil {
+		if name != r.owner {
+			if db, dbErr := child.GetDatabase().DB(); dbErr == nil {
+				_ = db.Close()
+			}
+		}
+		return nil, fmt.Errorf("initialize workspace %q: %w", name, err)
+	}
+	return &workspace{app: child, components: components}, nil
+}
+
+func (r *workspaceRouter) space(name string) *workspace {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.spaces[name]
+}
+
 func (r *workspaceRouter) install(e *echo.Echo) {
+	r.installAccountRoutes(e)
 	route := func(c *echo.Context) error { return r.route(c) }
 	e.Any("/*", route)
 	e.Any("/", route)
-	e.GET("/ws/agent", r.spaces[r.owner].components.AgentHandler.RouteWebSocket(func(ctx context.Context, key string) (*handler.AgentHandler, error) {
+	e.GET("/ws/agent", r.space(r.owner).components.AgentHandler.RouteWebSocket(func(ctx context.Context, key string) (*handler.AgentHandler, error) {
 		space := r.keyWorkspace(ctx, key, "agent")
 		if space == nil {
 			return nil, fmt.Errorf("invalid agent key")
@@ -170,8 +193,13 @@ func (r *workspaceRouter) keyWorkspace(ctx context.Context, key, kind string) *w
 	if key == "" {
 		return nil
 	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	var found *workspace
-	for _, space := range r.spaces {
+	for name, space := range r.spaces {
+		if !r.accountActive(name) {
+			continue
+		}
 		// Query within each workspace without logging the secret or caching a revoked key.
 		k, err := space.components.ApiKeyService.ApiKeyRepo.FindEnabledByKey(ctx, key)
 		if err != nil {
@@ -195,25 +223,9 @@ func (r *workspaceRouter) keyWorkspace(ctx context.Context, key, kind string) *w
 func (r *workspaceRouter) route(c *echo.Context) error {
 	req := c.Request()
 	path := req.URL.Path
-	primary := r.spaces[r.owner]
+	primary := r.space(r.owner)
 	var target *workspace
-	// Login chooses a workspace, but the target login handler still verifies the
-	// password. There is no client-controlled tenant header or tenant query arg.
-	if path == "/api/login" && req.Method == http.MethodPost {
-		body, err := io.ReadAll(http.MaxBytesReader(c.Response(), req.Body, 64*1024))
-		if err != nil {
-			return c.JSON(400, map[string]string{"message": "无效的登录请求"})
-		}
-		req.Body = io.NopCloser(bytes.NewReader(body))
-		var login handler.LoginRequest
-		if json.Unmarshal(body, &login) != nil {
-			return c.JSON(400, map[string]string{"message": "无效的登录请求"})
-		}
-		target = r.spaces[login.Username]
-		if target == nil {
-			return c.JSON(400, map[string]string{"message": "用户名或密码错误"})
-		}
-	} else if path == "/api/agent/install.sh" || strings.HasPrefix(path, "/api/agent/downloads/") {
+	if path == "/api/agent/install.sh" || strings.HasPrefix(path, "/api/agent/downloads/") {
 		key := req.URL.Query().Get("key")
 		if path == "/api/agent/install.sh" {
 			key = req.URL.Query().Get("token")
@@ -230,7 +242,9 @@ func (r *workspaceRouter) route(c *echo.Context) error {
 			}
 			token = strings.TrimPrefix(auth, "Bearer ")
 			if claims, err := primary.components.AccountHandler.ValidateToken(token); err == nil {
-				target = r.spaces[claims.Username]
+				if r.validAccountClaims(claims) {
+					target = r.space(claims.Username)
+				}
 			} else if strings.HasPrefix(path, "/api/admin/") {
 				target = r.keyWorkspace(req.Context(), token, "admin")
 			}
@@ -239,13 +253,15 @@ func (r *workspaceRouter) route(c *echo.Context) error {
 			}
 		} else if cookie, err := req.Cookie("pika_private_session"); err == nil {
 			if claims, err := primary.components.AccountHandler.ValidateToken(cookie.Value); err == nil {
-				target = r.spaces[claims.Username]
+				if r.validAccountClaims(claims) {
+					target = r.space(claims.Username)
+				}
 			}
 			if target == nil {
 				// An invalid/deleted account must never fall through to the legacy owner's
 				// handler: that handler recognizes the shared JWT signing key.
 				http.SetCookie(c.Response(), &http.Cookie{Name: "pika_private_session", Path: "/", MaxAge: -1, HttpOnly: true, Secure: c.Scheme() == "https", SameSite: http.SameSiteLaxMode})
-				if path != "/admin/login" && path != "/api/auth/config" && path != "/api/config" && !strings.HasPrefix(path, "/admin/assets/") {
+				if path != "/admin/login" && path != "/admin/register" && path != "/api/auth/config" && path != "/api/config" && !strings.HasPrefix(path, "/admin/assets/") {
 					if strings.HasPrefix(path, "/api/") {
 						return c.JSON(401, map[string]string{"message": "请重新登录"})
 					}

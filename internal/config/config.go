@@ -95,6 +95,8 @@ type VMConfig struct {
 // WorkspaceConfig binds the original database to a single account. Other accounts
 // receive independent SQLite databases and filesystem directories.
 type WorkspaceConfig struct {
-	LegacyOwner string `json:"LegacyOwner"`
-	Dir         string `json:"Dir"`
+	// Nil defaults to open registration. Set false to allow administrator-created accounts only.
+	RegistrationEnabled *bool  `json:"RegistrationEnabled"`
+	LegacyOwner         string `json:"LegacyOwner"`
+	Dir                 string `json:"Dir"`
 }

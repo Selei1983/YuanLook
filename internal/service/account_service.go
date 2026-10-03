@@ -46,8 +46,9 @@ type AccountService struct {
 
 // JWTClaims JWT 声明
 type JWTClaims struct {
-	UserID   string `json:"userId"`
-	Username string `json:"username"`
+	SessionVersion uint64 `json:"sessionVersion,omitempty"`
+	UserID         string `json:"userId"`
+	Username       string `json:"username"`
 	jwt.RegisteredClaims
 }
 

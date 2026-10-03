@@ -1,6 +1,6 @@
 # YuanLook
 
-**Private server monitoring, under your control.**
+**Private server monitoring, under your control.** Prefer not to self-host? Visit [look.zjpb.net](https://look.zjpb.net) and [register directly](https://look.zjpb.net/admin/register) to get your own isolated monitoring workspace.
 
 [简体中文](README.zh-CN.md) · [Private mode](docs/private-mode.md) · [License](LICENSE)
 

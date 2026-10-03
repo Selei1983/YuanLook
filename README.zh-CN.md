@@ -1,6 +1,6 @@
 # YuanLook
 
-**属于你自己的私有服务器监控与管理平台。**
+**属于你自己的私有服务器监控与管理平台。** 如果不想自己部署，可以访问 [look.zjpb.net](https://look.zjpb.net)，[直接注册使用](https://look.zjpb.net/admin/register)，拥有自己的独立监控空间。
 
 [English](README.md) · [私有模式说明](docs/private-mode.md) · [许可证](LICENSE)
 

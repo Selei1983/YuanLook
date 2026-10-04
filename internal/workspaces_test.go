@@ -296,3 +296,39 @@ func TestMultipleWorkspacesRequireProtectedMetricStorage(t *testing.T) {
 		t.Fatal("unauthenticated storage accepted")
 	}
 }
+
+func TestPublicHomepageDoesNotExposeWorkspaceData(t *testing.T) {
+	r, e := testWorkspaceRouter(t)
+	r.space("admin").app.GetDatabase().Create(&models.Agent{ID: "private-homepage-agent", Name: "secret-server-identity", Enabled: true})
+	for _, cookie := range []string{"", "expired-cookie"} {
+		request := httptest.NewRequest("GET", "/", nil)
+		if cookie != "" {
+			request.AddCookie(&http.Cookie{Name: "pika_private_session", Value: cookie})
+		}
+		response := httptest.NewRecorder()
+		e.ServeHTTP(response, request)
+		if response.Code != 200 || !strings.Contains(response.Body.String(), "创建我的监控空间") {
+			t.Fatalf("public homepage: %d", response.Code)
+		}
+		if strings.Contains(response.Body.String(), "secret-server-identity") {
+			t.Fatal("homepage leaked workspace data")
+		}
+		if !strings.Contains(response.Header().Get("Cache-Control"), "no-store") {
+			t.Fatal("homepage can be cached across sessions")
+		}
+	}
+	for _, endpoint := range []struct {
+		path   string
+		status int
+	}{
+		{"/api/agents", 401}, {"/api/monitors", 401}, {"/api/admin/agents", 401}, {"/t/default/index.html", 401}, {"/servers/private-homepage-agent", 303}, {"/admin/agents", 303},
+	} {
+		response := requestWorkspace(t, e, "GET", endpoint.path, "", "")
+		if response.Code != endpoint.status {
+			t.Fatalf("%s: %d", endpoint.path, response.Code)
+		}
+	}
+	if res := requestWorkspace(t, e, "GET", "/", "forged", ""); res.Code != 401 {
+		t.Fatal("forged bearer accepted")
+	}
+}

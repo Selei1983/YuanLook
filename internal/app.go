@@ -288,6 +288,8 @@ func setupApi(app *orz.App, components *AppComponents) error {
 
 	// 管理前端从 web/dist 由 Echo 直接加载；活动私有看板主题由主题服务选择独立目录。
 	e.Static("/admin/assets/", filepath.Join(assets.WebDir(), "assets"), handler.ImmutableStaticHeaders)
+	e.GET("/", components.WebHandler.Home(components.AccountHandler))
+	e.HEAD("/", components.WebHandler.Home(components.AccountHandler))
 	e.GET("/t/*", components.WebHandler.ServeThemeAsset, handler.PrivateReadAuth(components.AccountHandler, false))
 	e.GET("/*", components.WebHandler.ServeSPA, handler.PrivatePages(components.AccountHandler))
 

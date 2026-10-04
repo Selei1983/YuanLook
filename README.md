@@ -8,7 +8,7 @@ YuanLook is a self-hosted server monitoring and management project based on [Pik
 
 ## What changes
 
-- Server-side login checks protect the dashboard, server details and management pages.
+- The anonymous homepage introduces the product with sign-in and registration links. Server-side login checks protect the dashboard, server details and management pages.
 - Host lists, tags, metrics and service-monitoring APIs reject anonymous, forged and expired credentials, including for legacy records marked public.
 - Password sign-in establish an HttpOnly browser session; administrative mutations retain Bearer-token/API-key authentication.
 - New resources default to private, and the management UI no longer offers anonymous visibility.

@@ -261,7 +261,7 @@ func (r *workspaceRouter) route(c *echo.Context) error {
 				// An invalid/deleted account must never fall through to the legacy owner's
 				// handler: that handler recognizes the shared JWT signing key.
 				http.SetCookie(c.Response(), &http.Cookie{Name: "pika_private_session", Path: "/", MaxAge: -1, HttpOnly: true, Secure: c.Scheme() == "https", SameSite: http.SameSiteLaxMode})
-				if path != "/admin/login" && path != "/admin/register" && path != "/api/auth/config" && path != "/api/config" && !strings.HasPrefix(path, "/admin/assets/") {
+				if path != "/" && path != "/admin/login" && path != "/admin/register" && path != "/api/auth/config" && path != "/api/config" && !strings.HasPrefix(path, "/admin/assets/") {
 					if strings.HasPrefix(path, "/api/") {
 						return c.JSON(401, map[string]string{"message": "请重新登录"})
 					}

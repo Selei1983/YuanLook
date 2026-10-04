@@ -9,6 +9,7 @@ import (
 	"github.com/pika-monitor/pika/internal/protocol"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -330,5 +331,42 @@ func TestPublicHomepageDoesNotExposeWorkspaceData(t *testing.T) {
 	}
 	if res := requestWorkspace(t, e, "GET", "/", "forged", ""); res.Code != 401 {
 		t.Fatal("forged bearer accepted")
+	}
+}
+
+func TestSignedInHomepageKeepsPrivateTheme(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "dist"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"pika-theme.json": `{"schemaVersion":1,"id":"default","name":"Test","version":"1.0.0","author":"Test","preview":"preview.png","entry":"dist/index.html","apiVersion":"v1","capabilities":["server-list","server-detail","monitor-list","monitor-detail"]}`,
+		"dist/index.html": `<!doctype html><html><head></head><body>PRIVATE_THEME_SENTINEL</body></html>`,
+		"preview.png":     "test-preview",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PIKA_DEFAULT_THEME_DIR", root)
+	_, e := testWorkspaceRouter(t)
+	token, cookie := loginWorkspace(t, e, "alice")
+	for _, bearer := range []bool{false, true} {
+		req := httptest.NewRequest("GET", "/", nil)
+		if bearer {
+			req.Header.Set("Authorization", "Bearer "+token)
+		} else {
+			req.AddCookie(cookie)
+		}
+		res := httptest.NewRecorder()
+		e.ServeHTTP(res, req)
+		if res.Code != 200 || !strings.Contains(res.Body.String(), "PRIVATE_THEME_SENTINEL") || strings.Contains(res.Body.String(), "创建我的监控空间") {
+			t.Fatalf("signed-in homepage: %d %s", res.Code, res.Body.String())
+		}
+	}
+	res := requestWorkspace(t, e, "GET", "/", "", "")
+	if strings.Contains(res.Body.String(), "PRIVATE_THEME_SENTINEL") {
+		t.Fatal("theme leaked to anonymous homepage")
 	}
 }

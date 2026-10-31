@@ -1,5 +1,5 @@
 diff --git a/src/pages/ServerList.tsx b/src/pages/ServerList.tsx
-index 22696a4..d0b81f2 100644
+index 22696a4..5e92cb5 100644
 --- a/src/pages/ServerList.tsx
 +++ b/src/pages/ServerList.tsx
 @@ -23,6 +23,7 @@ import {cn, formatBytes, formatSpeed, formatUptime, isExpired, isExpiringSoon} f
@@ -7,10 +7,34 @@ index 22696a4..d0b81f2 100644
  import {hasAgentResourcePressure, isAgentOnline, isAgentTrafficNearLimit, type AgentWithMetrics} from '../domain/agents/agent-view-model';
  import PublicPageContainer from '../layouts/PublicPageContainer';
 +import ServerAddress from '../components/ServerAddress';
- 
+
  /* ========================================== 共享辅助函数 ========================================== */
- 
-@@ -99,6 +100,7 @@ const ServerCard: FC<ServerCardProps> = ({server}) => {
+
+@@ -51,12 +52,6 @@ const getTemperatures = (metrics?: LatestMetrics) => {
+     return [...metrics.temperature].sort((a, b) => a.type.localeCompare(b.type));
+ };
+
+-const getTrafficProgressColor = (percent: number) => {
+-    if (percent >= 100) return 'bg-danger';
+-    if (percent >= 80) return 'bg-warning';
+-    return 'bg-success';
+-};
+-
+ const FILTER_LABELS: Record<string, string> = {
+     ALL: '全部',
+     ONLINE: '在线',
+@@ -82,10 +77,6 @@ const ServerCard: FC<ServerCardProps> = ({server}) => {
+     const {upload, download} = calculateNetworkSpeed(server.metrics);
+     const temperatures = getTemperatures(server.metrics);
+     const netConn = server.metrics?.networkConnection;
+-    const traffic = server.trafficStats;
+-    const trafficUsagePercent = traffic?.enabled && traffic.limit > 0
+-        ? Math.min(100, (traffic.used / traffic.limit) * 100)
+-        : 0;
+     const expiryNeedsAttention = server.expireTime > 0 && (
+         isExpired(server.expireTime) || isExpiringSoon(server.expireTime)
+     );
+@@ -99,6 +90,7 @@ const ServerCard: FC<ServerCardProps> = ({server}) => {
                              <div className="min-w-0 truncate font-mono text-base font-bold text-content">
                                  {server.name || server.hostname}
                              </div>
@@ -18,7 +42,83 @@ index 22696a4..d0b81f2 100644
                              <div
                                  className="flex items-center gap-2 text-xs text-content-secondary mt-1 font-mono uppercase">
                                  <span>{server.os}</span>
-@@ -609,8 +611,9 @@ const ServerList = () => {
+@@ -197,7 +189,7 @@ const ServerCard: FC<ServerCardProps> = ({server}) => {
+                         <div className="py-2"><AgentOfflineState compact/></div>
+                     )}
+
+-                    {/* 离线设备仅展示资源区的错误状态，不展示可能已经陈旧的网络与流量数据。 */}
++                    {/* 离线设备仅展示资源区的错误状态，不展示可能已经陈旧的网络数据。 */}
+                     {isOnline && <div className="space-y-2 border-t border-line pt-2">
+                         <div className="flex items-center justify-between">
+                             <div className="flex gap-3 text-xs font-mono">
+@@ -231,40 +223,6 @@ const ServerCard: FC<ServerCardProps> = ({server}) => {
+                             </span>
+                             </div>
+                         )}
+-                        {traffic?.enabled && (
+-                            <div className="pt-2 border-t border-line space-y-1.5">
+-                                <div className="flex items-center gap-2 text-xs text-content-muted font-mono">
+-                                    <Activity className="w-3 h-3"/>
+-                                    <span>{traffic.type === 'recv' ? '进站' : traffic.type === 'send' ? '出站' : '全部'}流量</span>
+-                                </div>
+-                                {traffic.limit > 0 ? (
+-                                    <>
+-                                        <div className="flex items-baseline justify-between">
+-                                            <span className="text-xs text-content-secondary font-mono">
+-                                                {formatBytes(traffic.used, 1)} / {formatBytes(traffic.limit, 1)}
+-                                            </span>
+-                                            <span className="text-xs font-bold text-content-secondary font-mono">
+-                                                {trafficUsagePercent.toFixed(1)}%
+-                                            </span>
+-                                        </div>
+-                                        <div className="h-1.5 overflow-hidden rounded-full bg-panel-muted">
+-                                            <div
+-                                                className={`h-full transition-all ${getTrafficProgressColor(trafficUsagePercent)}`}
+-                                                style={{width: `${trafficUsagePercent}%`}}
+-                                            />
+-                                        </div>
+-                                        <div className="text-xs text-content-muted font-mono">
+-                                            重置日期: 每月 {traffic.resetDay} 号
+-                                        </div>
+-                                    </>
+-                                ) : (
+-                                    <div className="text-xs text-content-muted font-mono">
+-                                        已使用: {formatBytes(traffic.used, 1)}
+-                                        <div className="text-xs text-content-muted mt-1">仅统计模式</div>
+-                                    </div>
+-                                )}
+-                            </div>
+-                        )}
+                     </div>}
+             </Card>
+         </Link>
+@@ -562,13 +520,12 @@ const ServerList = () => {
+                     {/* 桌面端表格布局 */}
+                     <div
+                         className="hidden overflow-x-auto rounded-card border border-line bg-panel shadow-card backdrop-blur-md xl:block">
+-                        <table className="w-full min-w-[1180px] table-fixed border-collapse text-left">
++                        <table className="w-full min-w-[970px] table-fixed border-collapse text-left">
+                             <thead>
+                             <tr className="border-b border-line bg-panel-muted text-xs font-semibold text-content-muted">
+                                 <th className="w-[230px] p-5 font-bold">设备</th>
+                                 <th className="w-[250px] p-5 font-bold">资源</th>
+                                 <th className="w-[160px] p-5 font-bold">实时速率</th>
+-                                <th className="w-[210px] p-5 font-bold">流量</th>
+                                 <th className="p-5 font-bold w-[150px]">连接</th>
+                                 <th className="w-[180px] p-5 font-bold">标签与到期日</th>
+                             </tr>
+@@ -586,10 +543,6 @@ const ServerList = () => {
+                                 const {upload, download} = calculateNetworkSpeed(server.metrics);
+                                 const temperatures = getTemperatures(server.metrics);
+                                 const netConn = server.metrics?.networkConnection;
+-                                const traffic = server.trafficStats;
+-                                const trafficUsagePercent = traffic?.enabled && traffic.limit > 0
+-                                    ? Math.min(100, (traffic.used / traffic.limit) * 100)
+-                                    : 0;
+
+                                 return (
+                                     <tr
+@@ -609,8 +562,9 @@ const ServerList = () => {
                                              <div className="flex items-center gap-4">
                                                  <div className="space-y-1">
                                                      <div className="font-mono text-sm font-bold text-content transition-colors">
@@ -29,6 +129,50 @@ index 22696a4..d0b81f2 100644
                                                      <div
                                                          className="flex items-center gap-2 text-xs text-content-secondary mt-1 font-mono uppercase">
                                                          <span>{server.os}</span>
+@@ -698,43 +652,6 @@ const ServerList = () => {
+                                             </div>}
+                                         </td>
+
+-                                        {/* Traffic */}
+-                                        <td className="p-4 align-middle font-mono text-xs">
+-                                            {isOnline && (traffic?.enabled ? (
+-                                                <div className="flex flex-col gap-1.5">
+-                                                    <div className="text-xs text-content-muted font-mono">
+-                                                        {traffic.type === 'recv' ? '进站' : traffic.type === 'send' ? '出站' : '全部'}流量
+-                                                    </div>
+-                                                    {traffic.limit > 0 ? (
+-                                                        <>
+-                                                            <div className="flex items-baseline justify-between">
+-                                                                <span className="text-xs text-content-secondary font-mono">
+-                                                                    {formatBytes(traffic.used, 1)} / {formatBytes(traffic.limit, 1)}
+-                                                                </span>
+-                                                                <span className="text-xs font-bold text-content-secondary font-mono">
+-                                                                    {trafficUsagePercent.toFixed(1)}%
+-                                                                </span>
+-                                                            </div>
+-                                                            <div className="h-1.5 overflow-hidden rounded-full bg-panel-muted">
+-                                                                <div
+-                                                                    className={`h-full transition-all ${getTrafficProgressColor(trafficUsagePercent)}`}
+-                                                                    style={{width: `${trafficUsagePercent}%`}}
+-                                                                />
+-                                                            </div>
+-                                                            <div className="text-xs text-content-muted font-mono">
+-                                                                重置日期: 每月 {traffic.resetDay} 号
+-                                                            </div>
+-                                                        </>
+-                                                    ) : (
+-                                                        <div className="text-xs text-content-muted font-mono">
+-                                                            已使用: {formatBytes(traffic.used, 1)}
+-                                                            <div className="text-xs text-content-muted mt-1">仅统计模式</div>
+-                                                        </div>
+-                                                    )}
+-                                                </div>
+-                                            ) : null)}
+-                                        </td>
+-
+                                         {/* Connections */}
+                                         <td className="p-4 align-middle font-mono text-xs">
+                                             {isOnline && netConn && (
 diff --git a/src/types.ts b/src/types.ts
 index 7e9e16a..6baa5b4 100644
 --- a/src/types.ts
@@ -49,10 +193,10 @@ index 7e9e16a..6baa5b4 100644
      version: string;
 diff --git a/src/components/ServerAddress.tsx b/src/components/ServerAddress.tsx
 new file mode 100644
-index 0000000..32b027e
+index 0000000..100d0d8
 --- /dev/null
 +++ b/src/components/ServerAddress.tsx
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,30 @@
 +import type {Agent} from '../types';
 +
 +export default function ServerAddress({server}: {server: Agent}) {
@@ -79,10 +223,6 @@ index 0000000..32b027e
 +                <span>访问延时 · </span>
 +                <span className={check && !targetChanged && !success ? 'text-warning' : ''}>{latency}</span>
 +                {stale && !targetChanged && <span className="ml-1 text-warning">（待更新）</span>}
-+            </div>
-+            <div className="text-[10px] text-content-muted">
-+                面板 → 服务器 · 每日约 4 次
-+                {check && !targetChanged && <time className="mt-0.5 block" dateTime={new Date(check.checkedAt).toISOString()}>上次 {checkedTime}</time>}
 +            </div>
 +        </div>
 +    );

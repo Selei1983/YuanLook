@@ -30,14 +30,7 @@ build-web:
 	$(MAKE) build-default-theme
 
 build-default-theme:
-	test -f "$(DEFAULT_THEME_DIR)/package-lock.json"
-	test -f "$(DEFAULT_THEME_DIR)/pika-theme.json"
-	npm ci --prefix "$(DEFAULT_THEME_DIR)"
-	npm run build --prefix "$(DEFAULT_THEME_DIR)"
-	rm -rf "$(DEFAULT_THEME_OUTPUT_DIR)"
-	mkdir -p "$(DEFAULT_THEME_OUTPUT_DIR)"
-	cp "$(DEFAULT_THEME_DIR)/pika-theme.json" "$(DEFAULT_THEME_OUTPUT_DIR)/pika-theme.json"
-	cp -R "$(DEFAULT_THEME_DIR)/dist" "$(DEFAULT_THEME_OUTPUT_DIR)/dist"
+	bash scripts/build-default-theme.sh "$(DEFAULT_THEME_DIR)" "$(DEFAULT_THEME_OUTPUT_DIR)"
 
 # 构建服务端（开发）
 build-server:

@@ -493,6 +493,9 @@ func (s *AgentService) DeleteAgent(ctx context.Context, agentID string) error {
 	// 在事务中执行所有数据库删除操作
 	err := s.Transaction(ctx, func(ctx context.Context) error {
 		// 1. 删除探针的审计结果
+		if err := s.AgentRepo.GetDB(ctx).Where("agent_id = ?", agentID).Delete(&models.AgentAccessCheck{}).Error; err != nil {
+			return err
+		}
 		if err := s.AgentRepo.DeleteAuditResults(ctx, agentID); err != nil {
 			s.logger.Error("删除探针审计结果失败", zap.String("agentId", agentID), zap.Error(err))
 			return err

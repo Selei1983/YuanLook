@@ -1,0 +1,89 @@
+diff --git a/src/pages/ServerList.tsx b/src/pages/ServerList.tsx
+index 22696a4..d0b81f2 100644
+--- a/src/pages/ServerList.tsx
++++ b/src/pages/ServerList.tsx
+@@ -23,6 +23,7 @@ import {cn, formatBytes, formatSpeed, formatUptime, isExpired, isExpiringSoon} f
+ import {AgentExpiryBadge, AgentOfflineState, Card, ErrorState, LoadingSpinner, MetricBar, StatCard, StatusSummary} from '../components/index';
+ import {hasAgentResourcePressure, isAgentOnline, isAgentTrafficNearLimit, type AgentWithMetrics} from '../domain/agents/agent-view-model';
+ import PublicPageContainer from '../layouts/PublicPageContainer';
++import ServerAddress from '../components/ServerAddress';
+ 
+ /* ========================================== 共享辅助函数 ========================================== */
+ 
+@@ -99,6 +100,7 @@ const ServerCard: FC<ServerCardProps> = ({server}) => {
+                             <div className="min-w-0 truncate font-mono text-base font-bold text-content">
+                                 {server.name || server.hostname}
+                             </div>
++                            <ServerAddress server={server}/>
+                             <div
+                                 className="flex items-center gap-2 text-xs text-content-secondary mt-1 font-mono uppercase">
+                                 <span>{server.os}</span>
+@@ -609,8 +611,9 @@ const ServerList = () => {
+                                             <div className="flex items-center gap-4">
+                                                 <div className="space-y-1">
+                                                     <div className="font-mono text-sm font-bold text-content transition-colors">
+-                                                        {server.name}
++                                                        {server.name || server.hostname}
+                                                     </div>
++                                                    <ServerAddress server={server}/>
+                                                     <div
+                                                         className="flex items-center gap-2 text-xs text-content-secondary mt-1 font-mono uppercase">
+                                                         <span>{server.os}</span>
+diff --git a/src/types.ts b/src/types.ts
+index 7e9e16a..6baa5b4 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -53,6 +53,13 @@ export interface Agent {
+     ip: string;
+     ipv4?: string;
+     ipv6?: string;
++    accessTarget?: string;
++    accessLatency?: {
++        target: string;
++        status: 'checking' | 'success' | 'timeout' | 'error';
++        latencyMs: number | null;
++        checkedAt: number;
++    };
+     os: string;
+     arch: string;
+     version: string;
+diff --git a/src/components/ServerAddress.tsx b/src/components/ServerAddress.tsx
+new file mode 100644
+index 0000000..32b027e
+--- /dev/null
++++ b/src/components/ServerAddress.tsx
+@@ -0,0 +1,34 @@
++import type {Agent} from '../types';
++
++export default function ServerAddress({server}: {server: Agent}) {
++    const addresses = [...new Set([server.ipv4, server.ipv6].filter(Boolean))];
++    if (addresses.length === 0 && server.ip) addresses.push(server.ip);
++
++    const check = server.accessLatency;
++    const targetChanged = check && check.target !== (server.accessTarget ?? addresses[0]);
++    const stale = check && Date.now() - check.checkedAt > 7 * 60 * 60 * 1000;
++    const success = check?.status === 'success' && check.latencyMs != null;
++    const latency = addresses.length === 0 ? '暂无 IP' : !check || targetChanged ? '待检测'
++        : success ? `${check.latencyMs!.toFixed(1)} ms`
++        : check.status === 'timeout' ? '未响应'
++        : check.status === 'checking' ? (Date.now() - check.checkedAt > 60000 ? '检测未完成' : '等待结果')
++        : '检测失败';
++    const checkedTime = check ? new Date(check.checkedAt).toLocaleString('zh-CN', {hour12: false}) : '';
++
++    return (
++        <div className="mt-1 space-y-0.5 font-mono text-xs text-content-secondary">
++            {addresses.length > 0 ? addresses.map(address => (
++                <div key={address} className="break-all" title={address}>IP · {address}</div>
++            )) : <div className="text-content-muted">IP · 暂未获取</div>}
++            <div title={`监控面板到服务器的 ICMP 往返延时，每 6 小时检测一次。未响应也可能是服务器禁用了 Ping。${check ? ` 上次检测：${checkedTime}；目标：${check.target}` : ''}`}>
++                <span>访问延时 · </span>
++                <span className={check && !targetChanged && !success ? 'text-warning' : ''}>{latency}</span>
++                {stale && !targetChanged && <span className="ml-1 text-warning">（待更新）</span>}
++            </div>
++            <div className="text-[10px] text-content-muted">
++                面板 → 服务器 · 每日约 4 次
++                {check && !targetChanged && <time className="mt-0.5 block" dateTime={new Date(check.checkedAt).toISOString()}>上次 {checkedTime}</time>}
++            </div>
++        </div>
++    );
++}

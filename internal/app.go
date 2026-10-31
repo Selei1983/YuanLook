@@ -129,6 +129,7 @@ func startWorkspaceJobs(ctx context.Context, components *AppComponents, logger *
 	go components.DDNSService.Run(ctx)
 	// 启动公网 IP 采集定时任务
 	go components.PublicIPService.Run(ctx)
+	go service.NewAgentAccessService(components.AgentService.AgentRepo.GetDB(ctx), logger).Run(ctx)
 
 	go func() { <-ctx.Done(); monitorScheduler.Stop() }()
 }
@@ -324,18 +325,19 @@ func setupPrivateReadAPI(e *echo.Echo, components *AppComponents) {
 func autoMigrate(database *gorm.DB) error {
 	// 自动迁移数据库表
 	return database.AutoMigrate(
-		&models.Agent{},         // 探针
-		&models.ApiKey{},        // ApiKey
-		&models.AuditResult{},   // 审计历史
-		&models.Property{},      // 系统属性
-		&models.AlertRecord{},   // 告警记录
-		&models.AlertState{},    // 告警状态
-		&models.AlertRule{},     // 告警规则
-		&models.MonitorTask{},   // 服务监控
-		&models.TamperEvent{},   // 防篡改事件
-		&models.DDNSConfig{},    // DDNS 配置
-		&models.DDNSRecord{},    // DDNS 记录
-		&models.SSHLoginEvent{}, // SSH 登录事件
+		&models.Agent{},            // 探针
+		&models.AgentAccessCheck{}, // 低频访问延时
+		&models.ApiKey{},           // ApiKey
+		&models.AuditResult{},      // 审计历史
+		&models.Property{},         // 系统属性
+		&models.AlertRecord{},      // 告警记录
+		&models.AlertState{},       // 告警状态
+		&models.AlertRule{},        // 告警规则
+		&models.MonitorTask{},      // 服务监控
+		&models.TamperEvent{},      // 防篡改事件
+		&models.DDNSConfig{},       // DDNS 配置
+		&models.DDNSRecord{},       // DDNS 记录
+		&models.SSHLoginEvent{},    // SSH 登录事件
 	)
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/go-orz/orz"
 	"github.com/labstack/echo/v5"
 	"github.com/pika-monitor/pika/internal/models"
+	"github.com/pika-monitor/pika/internal/service"
 	"github.com/pika-monitor/pika/internal/utils"
 	"gorm.io/datatypes"
 )
@@ -63,10 +64,21 @@ func (h *AgentHandler) GetAgents(c *echo.Context) error {
 
 	// 排序
 	SortAgents(agents)
+	checks := map[string]models.AgentAccessCheck{}
+	if isAuthenticated {
+		checks, err = h.agentService.AgentRepo.FindAccessChecks(ctx, agents)
+		if err != nil {
+			return err
+		}
+	}
 
 	result := make([]map[string]interface{}, 0, len(agents))
 	for _, agent := range agents {
-		result = append(result, h.buildAgentListItem(agent, isAuthenticated))
+		item := h.buildAgentListItem(agent, isAuthenticated)
+		if check, ok := checks[agent.ID]; ok {
+			item["accessLatency"] = check
+		}
+		result = append(result, item)
 	}
 
 	return orz.Ok(c, result)
@@ -85,6 +97,13 @@ func (h *AgentHandler) buildAgentListItem(agent models.Agent, isAuthenticated bo
 		"lastSeenAt": agent.LastSeenAt,
 		"visibility": agent.Visibility,
 		"weight":     agent.Weight,
+	}
+	if isAuthenticated {
+		item["hostname"] = agent.Hostname
+		item["ip"] = agent.IP
+		item["ipv4"] = agent.IPv4
+		item["ipv6"] = agent.IPv6
+		item["accessTarget"] = service.AgentAccessTarget(agent)
 	}
 
 	trafficStats := agent.TrafficStats.Data()

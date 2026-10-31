@@ -25,3 +25,11 @@ jobs:
       - run: npm ci --prefix web
       - run: npm run build --prefix web
       - run: npm run lint --prefix web
+      - name: Read pinned default theme
+        run: echo "DEFAULT_THEME_REF=$(tr -d '\r\n' < .github/default-theme.ref)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          repository: pika-monitor/pika-default-theme
+          ref: ${{ env.DEFAULT_THEME_REF }}
+          path: pika-default-theme
+      - run: make DEFAULT_THEME_DIR=pika-default-theme build-default-theme
